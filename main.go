@@ -29,7 +29,7 @@ func main() {
 	e.POST("/user/login", controller.LogIn)
 	e.POST("/user", controller.CreateUser)
 	e.PUT("/user/:id", controller.UpdateUser)
-
+	e.DELETE("/user", controller.DeleteUser)
 	// e.POST("/users", service.CreateUser)
 	// e.GET("/users/:id", service.GetUser)
 	// e.DELETE("/users/:id", service.DeleteUser)

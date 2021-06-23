@@ -19,6 +19,31 @@ func Home(c echo.Context) error {
 	return c.JSON(http.StatusOK, "Home")
 }
 
+func DeleteUser(c echo.Context) error {
+	my_data := echo.Map{}
+	if err := c.Bind(&my_data); err != nil {
+		return err
+	} else {
+		id, err := primitive.ObjectIDFromHex(c.QueryParam("id"))
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, "Invalid Id")
+		}
+
+		if len(id) > 0 {
+			client := helper.GetMongoClient()
+			collection := client.Database("GolangTestDB").Collection("user")
+
+			var foundedUser bson.M
+			if err = collection.FindOneAndDelete(context.Background(), bson.M{"_id": id}).Decode(&foundedUser); err != nil {
+				print("err", err.Error())
+				return c.JSON(http.StatusBadGateway, "Can't find any user with that id")
+			}
+
+			return c.JSON(http.StatusOK, "Deleted")
+		}
+		return c.JSON(http.StatusBadRequest, "Something wrong")
+	}
+}
 func GetUsers(c echo.Context) error {
 	client := helper.GetMongoClient()
 	collection := client.Database("GolangTestDB").Collection("user")
@@ -54,28 +79,37 @@ func UpdateUser(c echo.Context) error {
 			client := helper.GetMongoClient()
 			collection := client.Database("GolangTestDB").Collection("user")
 
-			var foundedUser bson.M
-			if err = collection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&foundedUser); err != nil {
-				print("err", err.Error())
-				return c.JSON(http.StatusBadGateway, "Can't find any user with that id")
-			}
+			username := fmt.Sprintf("%v", my_data["username"])
+			password := fmt.Sprintf("%v", my_data["password"])
 
-			// var updatedUser bson.M
-			update := bson.D{
-				primitive.E{Key: "$set", Value: bson.M{
-					"username": "hanam123",
-					"password": "abc12333",
-				}},
+			if username == "<nil>" || password == "<nil>" {
+				return c.JSON(http.StatusBadRequest, "Must have two field username and password")
 			}
-			newUpdatedUser, err := collection.UpdateByID(context.Background(), id, update)
-			if err != nil {
-				print(err.Error())
-				return c.JSON(http.StatusBadRequest, "Something wrong")
+			if len(username) > 0 && len(password) > 0 {
+				var foundedUser bson.M
+				if err = collection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&foundedUser); err != nil {
+					print("err", err.Error())
+					return c.JSON(http.StatusBadGateway, "Can't find any user with that id")
+				}
+
+				// var updatedUser bson.M
+				update := bson.D{
+					primitive.E{Key: "$set", Value: bson.M{
+						"username": username,
+						"password": password,
+					}},
+				}
+				newUpdatedUser, err := collection.UpdateByID(context.Background(), id, update)
+				if err != nil {
+					print(err.Error())
+					return c.JSON(http.StatusBadRequest, "Something wrong")
+				}
+				newUpdatedUser.MatchedCount = 1
+				//collection.FindOneAndUpdate(context.Background(), bson.M{"_id": id}, bson.M{"username": "hanam123", "password": "abc123"}).Decode(&updatedUser)
+				return c.JSON(http.StatusOK, "Updated")
 			}
-			//collection.FindOneAndUpdate(context.Background(), bson.M{"_id": id}, bson.M{"username": "hanam123", "password": "abc123"}).Decode(&updatedUser)
-			return c.JSON(http.StatusOK, newUpdatedUser)
 		}
-		return c.JSON(http.StatusBadRequest, "You must fill in id field")
+		return c.JSON(http.StatusBadRequest, "An error occurs")
 	}
 }
 
